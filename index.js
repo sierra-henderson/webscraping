@@ -1,39 +1,53 @@
-const rp = require("request-promise")
+const rp = require("request")
 const cheerio = require("cheerio");
 const fs = require('fs')
-const baseURL = "https://en.wikipedia.org"
-const musicalsURL = "/wiki/List_of_musicals:_A_to_L"
-const musicalArr = []
+const mtiLinks = require('./mti')
+const mtiArr = []
 
-rp(baseURL + musicalsURL, (err, response, html) => {
-  if (!err && response.statusCode === 200) {
-    const $ = cheerio.load(html)
-    $('.wikitable:first-of-type tbody tr').each((i, el) => {
-      const link = $(el).find('td:first-of-type a').attr('href')
-      rp(baseURL + link, (error, response, html) => {
-        if (!error && response.statusCode === 200) {
-          const $ = cheerio.load(html)
-          $('.infobox tr').each((i, n) => {
-            let music;
-            let lyrics;
-            if ($(n).find('th').text().toLowerCase() === 'music') {
-              music = $(n).find('td').text()
-            } else if ($(n).find('th').text().toLowerCase() === 'lyrics') {
-              lyrics = $(n).find('td').text()
-            }
-            const title = $('th .summary').text()
-            musicalArr.push({ title, music, lyrics })
-          })
+mtiLinks.forEach(el => {
+  rp(el, (error, response, html) => {
+    if (!error && response.statusCode === 200) {
+      const $ = cheerio.load(html)
+      const source = 'MTI'
+      const title = $('.field-name-field-show-title-full').text()
+      const music = []
+      const lyrics = []
+      const genre = []
+      const musicalStyle = []
+      const showType = []
+      const showSetting = []
+      const similarShows = []
+      const plot = []
+      const tags = []
+      $('.field-name-field-show-attribution-author').each((i, el) => {
+        if ($(el).prev().text().toLowerCase().includes('music')) {
+          music.push($(el).text().trim())
+          if ($(el).prev().text().toLowerCase().includes('lyrics')) {
+            lyrics.push($(el).text().trim())
+          }
+        } else if ($(el).prev().text().toLowerCase().includes('lyrics')) {
+          lyrics.push($(el).text().trim())
         }
       })
-    })
-    const jsonified = JSON.stringify(musicalArr, null, 2)
-    fs.writeFile('data.json', jsonified, 'utf8', err => {
-      if (err) throw err
-    })
-  }
+      $('.field-name-field-show-theme').each((i, el) => genre.push($(el).text().trim()))
+      $('.field-name-field-show-style').each((i, el) => musicalStyle.push($(el).text().trim()))
+      $('.field-name-field-show-type').each((i, el) => showType.push($(el).text().trim()))
+      $('.field-name-field-show-setting').each((i, el) => showSetting.push($(el).text().trim()))
+      $('.field-name-field-show-similar-shows a').each((i, el) => similarShows.push($(el).text().trim()))
+      $('.field-name-field-show-synopsis-brief p').each((i, el) => plot.push($(el).text().trim()))
+      $('.field-collection').each((i, el) => tags.push($(el).text().trim()))
+      mtiArr.push({source, title, music, lyrics, genre, musicalStyle, showType, showSetting, similarShows, plot, tags})
+      const jsonified = JSON.stringify(mtiArr, null, 2)
+      fs.writeFile('mti.json', jsonified, 'utf8', err => {
+        if (err) throw err
+      })
+    }
+  })
 })
 
+// const baseURL = "https://en.wikipedia.org"
+// const musicalsURL = "/wiki/List_of_musicals:_A_to_L"
+// const musicalArr = []
 // const links = [
 //   "/wiki/110_in_the_Shade",
 //   "/wiki/13_(musical)",
@@ -52,24 +66,25 @@ rp(baseURL + musicalsURL, (err, response, html) => {
 // ]
 
 // links.forEach(el => {
-//   rp(baseURL + el, (err, response, html) => {
-//     if (!err && response.statusCode === 200) {
+//   rp(baseURL + el, (error, response, html) => {
+//     if (!error && response.statusCode === 200) {
 //       const $ = cheerio.load(html)
+//       let title;
+//       let music;
+//       let lyrics;
 //       $('.infobox tr').each((i, n) => {
-//         let music;
-//         let lyrics;
 //         if ($(n).find('th').text().toLowerCase() === 'music') {
 //           music = $(n).find('td').text()
 //         } else if ($(n).find('th').text().toLowerCase() === 'lyrics') {
 //           lyrics = $(n).find('td').text()
 //         }
-//         const title = $('th .summary').text()
-//         musicalArr.push({ title, music, lyrics })
+//         title = $('th .summary').text()
+//       })
+//       musicalArr.push({ title, music, lyrics })
+//       const jsonified = JSON.stringify(musicalArr, null, 2)
+//       fs.writeFile('data.json', jsonified, 'utf8', err => {
+//         if (err) throw err
 //       })
 //     }
-//   })
-//   const jsonified = JSON.stringify(musicalArr, null, 2)
-//   fs.writeFile('data.json', jsonified, 'utf8', err => {
-//     if (err) throw err
 //   })
 // })
